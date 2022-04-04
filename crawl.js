@@ -34,15 +34,11 @@ async function getUrlLinks(url) {
     //応答の中で必要な情報以外には全部削除する
     try {
         const response = await getResposne(url);
-        console.log(response.request.responseContent.statusCode)
         if (response.request.responseContent.statusCode != 200) {//ネットワークエラー確認
             return null;//エラーがあったら何も返せないようにする
         }
         const dom = parser.parseFromString(response.body);
         const aList = dom.getElementsByTagName('a');
-        /*         const imgList = dom.getElementsByTagName('img');
-                const imgSrc = imgList.map(el => el.getAttribute('src'))
-                console.log(imgSrc) */
         let urlList = aList.map(el => {
             const url = el.getAttribute('href')
             if (url == null || url.indexOf('#') == 0 || url.indexOf('mailto') == 0 || url == 'javascript') {//いらないurl情報
@@ -67,6 +63,7 @@ async function getUrlLinks(url) {
 let resultUrl = [];
 let skipUrl = new Set();//一回でも出たらいらない情報ということだから重複値はいらない
 let seedOriginalHost;//元のhosturlと比べるための変数
+
 async function filterUrlLinks(urls) {
     try {
         for (var i = 0; i < urls.length; i++) {
@@ -79,10 +76,11 @@ async function filterUrlLinks(urls) {
             console.log("newUrl : " + newUrl);
             console.log("resultUrl.includes(newUrl) : " + resultUrl.includes(newUrl))
             if (!resultUrl.includes(newUrl)) {
-                const response = await getResposne(newUrl)
+                const response = await getResposne(newUrl);
                 if (seedOriginalHost === response.request.originalHost) {
                     resultUrl.push(newUrl)//同じホストだったら結果リストに入れる
-                    console.log("resultUrl.push : " + newUrl)
+                    console.log("resultUrl.push(newUrl) : " + newUrl);
+                    console.log(resultUrl);
                 }
             }
         }
@@ -103,18 +101,37 @@ function removeSlashLast(url) {//最後に/がくるurlはディレクトリで�
 async function getSeedOriginalHost(seedUrl) {//元のhosturlを探す
     try {
         const seedResponse = await getResposne(seedUrl);
-        return seedResponse.request.originalHost
+        console.log("seedOriginalHost : ", seedResponse.request.originalHost);
+        return seedResponse.request.originalHost;
     } catch (err) {
         return null;
     }
 }
-//===========================================
-//==実行部分
-//===========================================
-async function test() {
-    seedOriginalHost = await getSeedOriginalHost(seedUrl);
-    urls = await getUrlLinks(seedUrl)
-    await filterUrlLinks(urls)
-    console.log(resultUrl)
+
+async function bfs() {
+    let cur = 0;//resultUrlのインデックスとして使われる変数
+    resultUrl.push(seedUrl)//seedになるUrlを入れる
+    while (cur < resultUrl.length) {//新しいurlがなくなるまで繰り返す
+        try {
+            const tempUrls = await getUrlLinks(resultUrl[cur++]);
+            //resultUrlで込めてあるurlでurl情報を集める
+            await filterUrlLinks(tempUrls);
+            //それから出たことない新しいurlだったらresultUrlに追加
+        } catch (err) {
+            console.log(err);
+        }
+    }
 }
-test()
+//===========================================
+//==================実行部分===================
+//===========================================
+async function crawlWebPage() {
+    try {
+        seedOriginalHost = await getSeedOriginalHost(seedUrl);
+        await bfs();
+    } catch (err) {
+        console.log(err);
+    }
+}
+
+crawlWebPage();

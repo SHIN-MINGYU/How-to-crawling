@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "dom-parser": "^0.1.6",
+    "request": "^2.88.2"
+  }
+}
